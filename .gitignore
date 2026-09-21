@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.venv/
+venv/
+# Résultats de simulation
+runs/
+*_out/
+*.vtk
+*.bi4
+*.png
+!docs/*.png

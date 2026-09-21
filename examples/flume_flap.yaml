@@ -1,0 +1,83 @@
+name: flume_flap
+dimension: 2d
+dp: 0.01
+flume:
+  length: 12.0
+  depth: 0.5
+  height: 1.0
+  width: 0.0
+wavemaker:
+  kind: flap
+  thickness: 0.05
+  x: 0.0
+  hinge: 0.0
+  mk: 10
+  waves:
+    kind: regular
+    height: 0.1
+    period: 1.5
+    order: 1
+    phase: 0.0
+    ramp: 1
+    start: 0.0
+    duration: 0.0
+    spectrum: jonswap
+    peak_coef: 3.3
+    n_waves: 128
+    seed: 2
+    discretization: stretched
+  awas:
+    enabled: false
+    gauge_x: 5.0
+    limit_acc: 2.0
+    correction: true
+    coef_stroke: 1.8
+    coef_period: 1.0
+    power_func: 3.0
+  save_motion: true
+damping:
+  enabled: true
+  start: 8.5
+  redumax: 10.0
+  overlimit: 1.0
+  factor:
+  - 1.0
+  - 1.0
+  - 1.0
+gauges:
+- name: WG1
+  x: 2.0
+  y: 0.0
+- name: WG2
+  x: 4.0
+  y: 0.0
+- name: WG3
+  x: 4.5
+  y: 0.0
+- name: WG4
+  x: 6.0
+  y: 0.0
+structures: []
+physics:
+  rhop0: 1000.0
+  gravity: 9.81
+  gamma: 7.0
+  coefsound: 20.0
+  coefh: 1.0
+  cfl: 0.2
+  kernel: wendland
+  step_algorithm: symplectic
+  visco_treatment: artificial
+  viscosity: 0.01
+  visco_bound_factor: 1.0
+  density_diffusion: 2
+  density_diffusion_value: 0.1
+  shifting: 0
+  shift_coef: -2.0
+  shift_tfs: 0.0
+  rigid_algorithm: 1
+  boundary: dbc
+time:
+  end: 15.0
+  output_dt: 0.05
+description: Canal 2D, batteur volet (flap), houle régulière

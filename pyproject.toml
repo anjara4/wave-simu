@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wavesimu"
+version = "0.1.0"
+description = "Outil de simulation de vagues (canal à houle) basé sur DualSPHysics"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+dependencies = [
+    "numpy>=1.22",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+plot = ["matplotlib>=3.5"]
+dev = ["pytest>=7", "matplotlib>=3.5"]
+
+[project.scripts]
+wavesimu = "wavesimu.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["wavesimu*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
