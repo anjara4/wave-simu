@@ -1,0 +1,29 @@
+Part_0000        3,915 (100.0%) particles successfully stored
+
+[WARNINGS]
+1. The XML option 'PartsOutMax' is deprecated. Use 'MinFluidStop' option.
+
+[Initialising simulation (lahq2sat)  21-09-2026 19:57:59]
+PART   PartTime   TotalSteps   Steps    Particles    Cells        Time/Sec   Finish time        
+=====  =========  ===========  =======  ===========  ===========  =========  ===================
+**Updated allocated memory in CPU: 782,466 (0.75 MiB)  (12 particle arrays)
+00001   0.050042          279      279        3,915          540       8.24  21-09-2026 19:58:31
+00002   0.100106          562      283        3,915          540       8.42  21-09-2026 19:58:32
+00003   0.150157          845      283        3,915          630       8.85  21-09-2026 19:58:32
+00004   0.200013        1,127      282        3,915          630       9.17  21-09-2026 19:58:33
+...
+00076   3.800065       21,544      283        3,915          630      10.31  21-09-2026 19:58:35
+00077   3.850043       21,827      283        3,915          630       9.67  21-09-2026 19:58:36
+00078   3.900024       22,111      284        3,915          630       9.84  21-09-2026 19:58:35
+00079   3.950022       22,395      284        3,915          630       9.72  21-09-2026 19:58:36
+00080   4.000095       22,679      284        3,915          630       9.69  21-09-2026 19:58:36
+
+[Simulation finished  21-09-2026 19:58:36]
+Particles of simulation (initial): 3,915
+DTs adjusted to DtMin............: 0
+Excluded particles...............: 0
+Total Runtime....................: 37.261620 sec.
+Simulation Runtime...............: 37.257847 sec.
+Runtime per physical second......: 9.314240 sec.
+Steps per second.................: 608.703979
+Steps of simulation..............: 22,679

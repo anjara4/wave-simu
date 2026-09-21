@@ -39,8 +39,14 @@ class RunInfo:
         return len(self.parts)
 
 
-_PART_RE = re.compile(r"^\s*Part_(\d+)\s+([\d.]+)\s+(\d+)\s+(\d+)\s+([\d.]+)")
-_KV_RE = re.compile(r"^\s*([A-Za-z][A-Za-z0-9 _()+/-]{2,40}?):\s+(.+?)\s*$")
+# Ligne de la table de progression, v5.4 :
+#   00001   0.050042   279   279   3,915   540   8.24  21-09-2026 19:58:31
+# ou versions antérieures : Part_0001  0.050000  133  133  10.86  ...
+_PART_RE = re.compile(
+    r"^\s*(?:Part_)?(\d{4,6})\s+([\d.]+)\s+([\d,]+)\s+([\d,]+)(?:\s+[\d,]+\s+[\d,]+)?\s+([\d.]+)(?:\s|$)"
+)
+# "Simulation Runtime...............: 37.25 sec." / "Total particles: 3,915 (...)"
+_KV_RE = re.compile(r"^\s*([A-Za-z][A-Za-z0-9 _()+/-]{2,60}?)\.*:\s+(.+?)\s*$")
 
 
 def parse_run_out(path: Union[str, Path]) -> RunInfo:
@@ -51,7 +57,7 @@ def parse_run_out(path: Union[str, Path]) -> RunInfo:
     for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
         m = _PART_RE.match(line)
         if m:
-            rows.append([float(m.group(i)) for i in range(1, 6)])
+            rows.append([float(m.group(i).replace(",", "")) for i in range(1, 6)])
             continue
         if "*** WARNING" in line or line.strip().startswith("WARNING"):
             ri.warnings.append(line.strip())
@@ -64,7 +70,7 @@ def parse_run_out(path: Union[str, Path]) -> RunInfo:
                 num = re.search(r"[\d.]+", value)
                 if num:
                     ri.runtime = float(num.group())
-            if low in ("particles", "total particles", "particles (fluid+bound)"):
+            if low in ("particles", "total particles", "particles (fluid+bound)", "particles of simulation (initial)"):
                 num = re.search(r"\d+", value.replace(",", ""))
                 if num:
                     ri.particles = int(num.group())
@@ -127,7 +133,9 @@ def _read_csv_table(path: Path) -> Tuple[List[str], np.ndarray, Dict[str, List[s
             if ("time" in joined) and not _is_numeric_row(cells):
                 header = cells
             else:
-                meta[cells[0]] = cells[1:]
+                key_idx = next((i for i, c in enumerate(cells) if c and not _is_number(c)), 0)
+                key = cells[key_idx].rstrip(":").strip()
+                meta[_norm_meta_key(key)] = cells[key_idx + 1 :]
             continue
         if _is_numeric_row(cells):
             rows.append([_to_float(c) for c in cells])
@@ -135,6 +143,20 @@ def _read_csv_table(path: Path) -> Tuple[List[str], np.ndarray, Dict[str, List[s
         raise ValueError(f"{path} : en-tête introuvable")
     data = np.array(rows, dtype=float) if rows else np.zeros((0, len(header)))
     return header, data, meta
+
+
+def _is_number(c: str) -> bool:
+    try:
+        float(c.replace(",", "."))
+        return True
+    except ValueError:
+        return False
+
+
+def _norm_meta_key(key: str) -> str:
+    """'Pos.x [m]', 'PosX [m]:' -> 'posx'."""
+    k = key.lower().split("[")[0]
+    return re.sub(r"[^a-z]", "", k)
 
 
 def _is_numeric_row(cells: List[str]) -> bool:
@@ -173,8 +195,8 @@ def read_measuretool_csv(path: Union[str, Path], names: Optional[List[str]] = No
     time = data[:, it] if len(data) else np.zeros(0)
     elev: Dict[str, np.ndarray] = {}
     positions: Dict[str, Tuple[float, float]] = {}
-    px = meta.get("Pos.x [m]") or meta.get("Pos.x")
-    py = meta.get("Pos.y [m]") or meta.get("Pos.y")
+    px = meta.get("posx")
+    py = meta.get("posy")
     for j, col in enumerate(cols):
         name = names[j] if names and j < len(names) else f"Elev_{j}"
         elev[name] = data[:, col] if len(data) else np.zeros(0)
@@ -189,10 +211,13 @@ def read_gauge_csv(path: Union[str, Path], name: Optional[str] = None) -> Elevat
     header, data, _ = _read_csv_table(path)
     it = _time_column(header)
     col = None
-    for i, h in enumerate(header):
-        hl = h.lower()
-        if i != it and ("swl" in hl or "elev" in hl or "pos.z" in hl or hl.startswith("z")):
-            col = i
+    lowered = [h.lower() for h in header]
+    for key in ("swlz", "elev", "pos.z", "posz", "z"):
+        for i, hl in enumerate(lowered):
+            if i != it and hl.startswith(key):
+                col = i
+                break
+        if col is not None:
             break
     if col is None:
         col = it + 1
@@ -204,8 +229,8 @@ def read_gauge_csv(path: Union[str, Path], name: Optional[str] = None) -> Elevat
 
 def _guess_gauge_name(path: Path) -> str:
     stem = path.stem
-    for prefix in ("GaugesSwl_", "GaugeSwl_", "Gauge_", "Gauges_"):
-        if stem.startswith(prefix):
+    for prefix in ("gaugesswl_", "gaugeswl_", "gauges_", "gauge_"):
+        if stem.lower().startswith(prefix):
             return stem[len(prefix):]
     return stem
 
@@ -213,24 +238,51 @@ def _guess_gauge_name(path: Path) -> str:
 def find_gauge_files(out_dir: Union[str, Path]) -> List[Path]:
     out_dir = Path(out_dir)
     found = set()
-    for pattern in ("Gauge*Swl*.csv", "gauges/*.csv", "*Swl*.csv", "**/Gauge*.csv"):
-        for p in out_dir.glob(pattern):
-            if p.is_file() and "measuretool" not in str(p).lower():
-                found.add(p)
+    for p in out_dir.rglob("*.csv"):
+        name = p.name.lower()
+        if not name.startswith("gauge") or "swl" not in name:
+            continue
+        if "awas" in name or "measuretool" in str(p).lower():
+            continue
+        found.add(p)
     return sorted(found)
 
 
+def relative_to_rest(es: ElevationSeries, swl: Optional[float] = None) -> ElevationSeries:
+    """Convertit des niveaux absolus (z de la surface) en élévation.
+
+    Le niveau de repos retranché est le premier échantillon valide de chaque
+    sonde (état initial au repos), ou ``swl`` si aucun échantillon n'est
+    exploitable. Les valeurs déjà centrées (|niveau initial| petit devant
+    ``swl``) sont laissées telles quelles.
+    """
+    out: Dict[str, np.ndarray] = {}
+    for name, v in es.elevation.items():
+        v = np.asarray(v, dtype=float)
+        finite = v[np.isfinite(v)]
+        if len(finite) == 0:
+            out[name] = v
+            continue
+        rest = float(finite[0])
+        if swl is not None and abs(rest) < 0.25 * swl:
+            rest = 0.0  # déjà relatif
+        out[name] = v - rest
+    return ElevationSeries(time=es.time, elevation=out, positions=es.positions, source=es.source)
+
+
 def load_elevations(workdir: Union[str, Path], case_name: str, gauge_names: Optional[List[str]] = None,
-                    swl: Optional[float] = None) -> ElevationSeries:
+                    swl: Optional[float] = None, relative: bool = True) -> ElevationSeries:
     """Charge les élévations d'un run, MeasureTool en priorité, sinon sondes internes.
 
-    Si ``swl`` est fourni, les sondes internes (niveau absolu) sont converties
-    en élévation relative au niveau de repos.
+    Les deux sources fournissent le niveau absolu de la surface ; avec
+    ``relative=True`` il est converti en élévation par rapport au niveau
+    initial (voir :func:`relative_to_rest`).
     """
     lay = RunLayout(Path(workdir), case_name)
     candidates = sorted(lay.measure.glob("*Elevation*.csv")) if lay.measure.is_dir() else []
     if candidates:
-        return read_measuretool_csv(candidates[0], gauge_names)
+        es = read_measuretool_csv(candidates[0], gauge_names)
+        return relative_to_rest(es, swl) if relative else es
     files = find_gauge_files(lay.out)
     if not files:
         raise FileNotFoundError(f"aucune sortie de sonde trouvée dans {lay.out}")
@@ -239,14 +291,13 @@ def load_elevations(workdir: Union[str, Path], case_name: str, gauge_names: Opti
     for f in files:
         es = read_gauge_csv(f)
         for k, v in es.elevation.items():
-            if swl is not None:
-                v = v - swl
             if time is None or len(es.time) < len(time):
                 time = es.time
             series[k] = v
     n = min(len(v) for v in series.values())
     series = {k: v[:n] for k, v in series.items()}
-    return ElevationSeries(time=time[:n], elevation=series, source=files[0])
+    es = ElevationSeries(time=time[:n], elevation=series, source=files[0])
+    return relative_to_rest(es, swl) if relative else es
 
 
 __all__ = [
@@ -257,4 +308,5 @@ __all__ = [
     "parse_run_out",
     "read_gauge_csv",
     "read_measuretool_csv",
+    "relative_to_rest",
 ]

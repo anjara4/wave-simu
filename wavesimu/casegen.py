@@ -334,8 +334,8 @@ class CaseGenerator:
             swl = _sub(g, "swl", name=gauge.name, comment="Calculates surface water level (SWL)")
             _point(swl, "point0", gauge.x, y, 0, comment="Initial point", units_comment="m")
             _point(swl, "point2", gauge.x, y, c.flume.height, comment="Final point", units_comment="m")
-            _sub(swl, "pointdp", valuedp=0.5, comment="Distance between check points (valuedp in Dp units)")
-            _sub(swl, "masslimit", coefdp=0.4 if c.is_2d else 0.5, comment="Mass value to detect fluid particles (coefdp in Dp units)")
+            _sub(swl, "pointdp", coefdp=0.5, comment="Distance between check points (coefdp in Dp units)")
+            _sub(swl, "masslimit", coef=0.4 if c.is_2d else 0.5, comment="Mass value to detect fluid particles (coef of fluid mass)")
 
     def _floatings(self, parent: ET.Element) -> None:
         c = self.case
@@ -374,7 +374,7 @@ class CaseGenerator:
         p("DtAllParticles", 0, "Velocity of particles used to calculate DT. 1:All, 0:Only fluid/floating (default=0)")
         p("TimeMax", t.end, "Time of simulation", "seconds")
         p("TimeOut", t.output_dt, "Time out data", "seconds")
-        p("PartsOutMax", 1, "%/100 of fluid particles allowed to be excluded from domain (default=1)", "decimal")
+        p("MinFluidStop", 0, "Minimum proportion of fluid particles to continue the simulation 0:never stops (default=0)", "decimal")
         p("RhopOutMin", 700, "Minimum rhop valid (default=700)", "kg/m^3")
         p("RhopOutMax", 1300, "Maximum rhop valid (default=1300)", "kg/m^3")
         dom = _sub(params, "simulationdomain", comment="Defines domain of simulation (default=Uses minimum and maximum position of the generated particles)")

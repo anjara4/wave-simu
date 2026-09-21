@@ -146,7 +146,7 @@ class Runner:
         log: Optional[Logger] = None,
     ):
         self.case = case.validate()
-        self.layout = RunLayout(Path(workdir), case.name)
+        self.layout = RunLayout(Path(workdir).resolve(), case.name)
         self.toolchain = toolchain if toolchain is not None else Toolchain.discover()
         self.options = options or RunOptions()
         self.log: Logger = log or (lambda msg: print(msg, file=sys.stderr))

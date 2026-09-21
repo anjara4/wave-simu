@@ -216,13 +216,25 @@ faux exécutables qui imitent les sorties (Run.out, CSV MeasureTool).
 
 ## Validation avec DualSPHysics
 
-Le XML généré a été vérifié avec GenCase v5.4.354 (dépôt officiel) sur les sept cas
-d'exemple : parois, plage, piston, obstacles, corps flottant et bassin 3D produisent
-les particules attendues. Règles apprises et intégrées au générateur :
+L'outil a été vérifié avec les binaires officiels v5.4 (GenCase v5.4.354, solveur CPU
+v5.4.354 compilé depuis les sources, PartVTK, IsoSurface, MeasureTool) :
+
+- GenCase génère les particules attendues pour les sept cas d'exemple (parois, plage,
+  piston, obstacles, corps flottant, bassin 3D) ;
+- une simulation complète de bout en bout (canal 2D de 5 m, piston avec AWAS, trois
+  sondes, amortissement, 4 s) s'exécute avec `wavesimu run` puis `wavesimu analyze` :
+  la houle générée a la période demandée et une hauteur cohérente avec la résolution ;
+- les lecteurs de `Run.out`, des CSV de sondes internes (`GaugesSWL_*.csv`) et de
+  MeasureTool (`Elevation_Elevation.csv`) sont testés sur des extraits réels
+  (`tests/data/`).
+
+Règles apprises et intégrées au générateur :
 
 - en 2D, GenCase ne garde que le plan `y = 0` mais les boîtes en mode « faces » et les
   `fillbox` doivent avoir une épaisseur en y (l'outil utilise ±0,1 m) ;
-- un corps flottant se déclare `<floating mkbound="…" rhopbody="…"/>` (attributs).
+- un corps flottant se déclare `<floating mkbound="…" rhopbody="…"/>` (attributs) ;
+- les sondes `<swl>` utilisent `pointdp coefdp` et `masslimit coef` ;
+- `PartsOutMax` est déprécié au profit de `MinFluidStop`.
 
 ## Limites connues
 
