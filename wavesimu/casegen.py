@@ -21,6 +21,10 @@ from .theory import wavelength
 MK_WALLS = 0  #: parois et fond du canal (mkbound)
 MK_FLUID = 0  #: eau (mkfluid)
 MK_STRUCT_START = 20  #: premier mk pour les structures
+#: Demi-épaisseur en y donnée aux formes en 2D : GenCase ne garde que le plan
+#: y=0, mais les boîtes en mode "faces" et les remplissages exigent une
+#: extension non nulle selon y pour produire des particules.
+Y_HALF_2D = 0.1
 
 
 def _fmt(v: float) -> str:
@@ -110,6 +114,12 @@ class CaseGenerator:
         back = max(0.5, 2.0 * self.case.wavemaker.waves.height / max(1e-9, self._transfer()))
         return wm.x - wm.thickness - back
 
+    def _yspan(self, y0: float = 0.0, width: Optional[float] = None) -> Tuple[float, float]:
+        """Origine et taille en y d'une forme : (±Y_HALF_2D en 2D, sinon (y0, width))."""
+        if self.case.is_2d:
+            return -Y_HALF_2D, 2.0 * Y_HALF_2D
+        return y0, self.case.flume.width if width is None else width
+
     def _transfer(self) -> float:
         from .theory import flap_transfer, piston_transfer, wavenumber
 
@@ -150,8 +160,9 @@ class CaseGenerator:
         faces = "bottom | right" if c.is_2d else "bottom | right | front | back"
         ET.SubElement(box, "boxfill").text = faces
         x0 = self.back_x()
-        _point(box, "point", x0, 0, 0)
-        _point(box, "size", fl.length - x0, fl.width, fl.height)
+        y0, ysz = self._yspan()
+        _point(box, "point", x0, y0, 0)
+        _point(box, "size", fl.length - x0, ysz, fl.height)
 
         # --- plage inclinée ----------------------------------------------
         if fl.beach is not None:
@@ -160,7 +171,7 @@ class CaseGenerator:
             self._comment(ml, f"Plage inclinee : pente {b.slope} a partir de x={b.start}")
             _sub(ml, "setmkbound", mk=MK_WALLS)
             prism = ET.SubElement(ml, "drawprism", mask="0")
-            ys = (-c.dp, c.dp) if c.is_2d else (0.0, fl.width)
+            ys = (-Y_HALF_2D, Y_HALF_2D) if c.is_2d else (0.0, fl.width)
             for y in ys:
                 _point(prism, "point", b.start, y, 0)
                 _point(prism, "point", fl.length, y, 0)
@@ -172,8 +183,9 @@ class CaseGenerator:
         _sub(ml, "setmkbound", mk=wm.mk)
         pb = ET.SubElement(ml, "drawbox")
         ET.SubElement(pb, "boxfill").text = "solid"
-        _point(pb, "point", wm.x - wm.thickness, 0, 0)
-        _point(pb, "size", wm.thickness, fl.width, fl.height)
+        y0, ysz = self._yspan()
+        _point(pb, "point", wm.x - wm.thickness, y0, 0)
+        _point(pb, "size", wm.thickness, ysz, fl.height)
 
         # --- structures ----------------------------------------------------
         for i, s in enumerate(c.structures):
@@ -184,8 +196,9 @@ class CaseGenerator:
         _sub(ml, "setmkfluid", mk=MK_FLUID)
         fb = _sub(ml, "fillbox", x=wm.x + wm.thickness + 2 * c.dp, y=0 if c.is_2d else 0.5 * fl.width, z=0.5 * fl.depth)
         ET.SubElement(fb, "modefill").text = "void"
-        _point(fb, "point", wm.x, 0, 0)
-        _point(fb, "size", fl.length - wm.x, fl.width, fl.depth)
+        y0, ysz = self._yspan()
+        _point(fb, "point", wm.x, y0, 0)
+        _point(fb, "size", fl.length - wm.x, ysz, fl.depth)
         _sub(ml, "shapeout", file="")
 
     def _structure(self, ml: ET.Element, s: Structure, mk: int) -> None:
@@ -196,7 +209,7 @@ class CaseGenerator:
         if s.kind in ("box", "floating_box"):
             sx, sy, sz = s.size
             if c.is_2d:
-                oy, sy = 0.0, 0.0
+                oy, sy = self._yspan()
             box = ET.SubElement(ml, "drawbox")
             ET.SubElement(box, "boxfill").text = "solid"
             _point(box, "point", ox, oy, oz)
@@ -331,8 +344,7 @@ class CaseGenerator:
             return
         fl = ET.SubElement(parent, "floatings")
         for i, s in floats:
-            f = _sub(fl, "floating", mkbound=structure_mk(c, i))
-            _sub(f, "rhopbody", value=s.density, comment="Density of the body")
+            _sub(fl, "floating", mkbound=structure_mk(c, i), rhopbody=s.density)
 
     def _parameters(self, parent: ET.Element) -> None:
         c = self.case

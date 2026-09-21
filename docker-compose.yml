@@ -1,0 +1,14 @@
+# Utilisation :
+#   docker compose build
+#   docker compose run --rm wavesimu init mon_cas.yaml
+#   docker compose run --rm wavesimu run mon_cas.yaml -o runs/essai1
+#   docker compose run --rm wavesimu analyze runs/essai1 --plot
+services:
+  wavesimu:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: wavesimu:latest
+    volumes:
+      - .:/work
+    working_dir: /work

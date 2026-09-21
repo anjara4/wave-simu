@@ -70,6 +70,11 @@ def test_2d_walls_have_no_left_face_and_bottom_extends_behind_paddle(regular_cas
     walls = boxes[0]
     assert walls.find("boxfill").text == "bottom | right"
     assert float(walls.find("point").get("x")) < -regular_case.wavemaker.thickness
+    # en 2D les formes ont une épaisseur en y (GenCase coupe dans le plan y=0)
+    assert float(walls.find("point").get("y")) == pytest.approx(-0.1)
+    assert float(walls.find("size").get("y")) == pytest.approx(0.2)
+    fill = root.find("casedef/geometry/commands/mainlist/fillbox")
+    assert float(fill.find("size").get("y")) == pytest.approx(0.2)
     assert root.find("casedef/geometry/definition/pointmin").get("y") == "0"
 
 
@@ -88,7 +93,7 @@ def test_beach_prism_2d():
     pts = prism.findall("point")
     assert len(pts) == 6
     assert float(pts[2].get("z")) == pytest.approx(0.4)
-    assert float(pts[0].get("y")) == pytest.approx(-c.dp)
+    assert float(pts[0].get("y")) == pytest.approx(-0.1)
 
 
 def test_structures_mk_and_floatings():
@@ -97,7 +102,7 @@ def test_structures_mk_and_floatings():
     root = _root(c)
     fl = root.find("casedef/floatings/floating")
     assert fl.get("mkbound") == "20"
-    assert fl.find("rhopbody").get("value") == "500"
+    assert fl.get("rhopbody") == "500"
     c2 = Case(structures=[Structure(mk=33)])
     assert structure_mk(c2, 0) == 33
 

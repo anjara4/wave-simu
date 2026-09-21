@@ -32,14 +32,55 @@ YAML (cas)  ──►  wavesimu check   : validation + théorie linéaire (L, c,
 
 ## Installation
 
+Deux façons d'installer l'outil : **Docker** (recommandé, tout est inclus, y compris
+DualSPHysics) ou **installation Python** (il faut alors fournir DualSPHysics soi-même).
+
+### Option A — Docker (recommandé, fonctionne sur macOS, Linux et Windows)
+
+Docker construit une image qui contient DualSPHysics v5.4 (CPU, compilé depuis les
+sources officielles) et l'outil `wavesimu`. Il faut [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+installé et démarré.
+
 ```bash
 git clone https://github.com/anjara4/wave-simu.git
 cd wave-simu
-pip install -e ".[dev]"          # numpy, pyyaml, matplotlib, pytest
+docker compose build            # 5 à 10 minutes la première fois (compilation du solveur)
 ```
 
+Ensuite chaque commande `wavesimu` se lance avec `docker compose run --rm wavesimu …` ;
+le dossier courant est monté dans le conteneur, les fichiers créés apparaissent
+directement sur votre machine :
+
+```bash
+docker compose run --rm wavesimu doctor                        # vérifie l'installation
+docker compose run --rm wavesimu init mon_cas.yaml             # crée un cas
+docker compose run --rm wavesimu check mon_cas.yaml            # le valide
+docker compose run --rm wavesimu run mon_cas.yaml -o runs/essai1
+docker compose run --rm wavesimu analyze runs/essai1 --plot
+```
+
+Le script `docker/wavesimu-docker.sh` fait la même chose en plus court :
+`docker/wavesimu-docker.sh run mon_cas.yaml -o runs/essai1`.
+
+Le conteneur utilise la version CPU du solveur. Pour un calcul GPU (NVIDIA, Linux ou
+Windows), installez DualSPHysics nativement et suivez l'option B.
+
+### Option B — Installation Python + DualSPHysics natif (Linux, Windows)
+
+```bash
+git clone https://github.com/anjara4/wave-simu.git
+cd wave-simu
+python3 -m pip install --upgrade pip      # pip >= 21.3 requis
+python3 -m pip install -e ".[dev]"        # numpy, pyyaml, matplotlib, pytest
+```
+
+Sur macOS, `pip` n'est pas dans le PATH : utilisez toujours `python3 -m pip`. Si la
+commande `wavesimu` n'est pas trouvée après l'installation, `python3 -m wavesimu.cli`
+est équivalent.
+
 DualSPHysics n'est pas distribué avec l'outil. Téléchargez la version 5.x sur
-<https://dual.sphysics.org>, décompressez-la et indiquez sa racine :
+<https://dual.sphysics.org> (binaires Linux et Windows uniquement ; sur macOS utilisez
+Docker), décompressez-la et indiquez sa racine :
 
 ```bash
 export DUALSPHYSICS_HOME=~/DualSPHysics_v5.4     # contient bin/linux ou bin/windows
@@ -170,6 +211,16 @@ pytest
 
 Les tests n'ont pas besoin de DualSPHysics : la chaîne complète est vérifiée avec de
 faux exécutables qui imitent les sorties (Run.out, CSV MeasureTool).
+
+## Validation avec DualSPHysics
+
+Le XML généré a été vérifié avec GenCase v5.4.354 (dépôt officiel) sur les sept cas
+d'exemple : parois, plage, piston, obstacles, corps flottant et bassin 3D produisent
+les particules attendues. Règles apprises et intégrées au générateur :
+
+- en 2D, GenCase ne garde que le plan `y = 0` mais les boîtes en mode « faces » et les
+  `fillbox` doivent avoir une épaisseur en y (l'outil utilise ±0,1 m) ;
+- un corps flottant se déclare `<floating mkbound="…" rhopbody="…"/>` (attributs).
 
 ## Limites connues
 
