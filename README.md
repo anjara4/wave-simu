@@ -70,13 +70,15 @@ Windows), installez DualSPHysics nativement et suivez l'option B.
 ```bash
 git clone https://github.com/anjara4/wave-simu.git
 cd wave-simu
-python3 -m pip install --upgrade pip      # pip >= 21.3 requis
-python3 -m pip install -e ".[dev]"        # numpy, pyyaml, matplotlib, pytest
+python3 -m venv .venv                     # environnement virtuel (pip récent, pas de droits admin)
+source .venv/bin/activate                 # Windows : .venv\Scripts\activate
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]"         # numpy, pyyaml, matplotlib, pytest
+wavesimu --version
 ```
 
-Sur macOS, `pip` n'est pas dans le PATH : utilisez toujours `python3 -m pip`. Si la
-commande `wavesimu` n'est pas trouvée après l'installation, `python3 -m wavesimu.cli`
-est équivalent.
+Réactivez l'environnement (`source .venv/bin/activate`) dans chaque nouveau terminal.
+Si la commande `wavesimu` n'est pas trouvée, `python -m wavesimu.cli` est équivalent.
 
 DualSPHysics n'est pas distribué avec l'outil. Téléchargez la version 5.x sur
 <https://dual.sphysics.org> (binaires Linux et Windows uniquement ; sur macOS utilisez
